@@ -138,43 +138,38 @@
         <div class="key btn-delete" id="deleteBtn" onclick="pressDelete()">⌫</div>
     </div>
 </div>
-
 <script>
     // ==========================================
-    // ⚙️ [설정] 암호 정답과 음성 설정을 변경하세요!
+    // ⚙️ [설정] 암호 번호와 음성 멘트를 여러 개 추가하세요!
     // ==========================================
-    const SECRET_NUMBER = "0701"; // 1) 정답 암호 숫자 (예: 0701 또는 0100701)
-    
-    // 2) 정답일 때 읽어줄 AI 안내 멘트 (음성 파일 없이 웹 브라우저 음성 사용)
     const SECRET_MESSAGES = {
         "0701": "반갑습니다, 친구님. 비밀번호는 사 사 대문자 i 칠 소문자 f n d 입니다. bitly와 연결하십시오.", // [넘버1 : 메시지1]
         "112": "전화 받았습니다. 자료는 삼 대문자 r 소문자 y 사 대문자 a j i 입니다. bitly와 연결하십시오.", // [넘버2 : 메시지2]
+        // 원하는 만큼 "번호": "출력할 음성" 형식으로 계속 추가할 수 있습니다!
     };
-    // 3) 만약 직접 녹음한 mp3 파일이 있다면 아래 주석(//)을 해제하고 파일명을 적으세요.
-    // const customAudio = new Audio('hint_voice.mp3'); 
     // ==========================================
 
     let currentInput = "";
     let isCalling = false;
     let ringtoneTimer = null;
 
-    // Web Audio API로 가짜 전화 연결음(뚜--- 뚜---) 생성
+    // Web Audio API로 가짜 클래식 신호음 생성
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playDialTone() {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, audioCtx.currentTime); // 440Hz 신호음
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime); 
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 1.5); // 1.5초간 뚜---
+        osc.stop(audioCtx.currentTime + 1.8);
     }
 
     function press(num) {
         if (isCalling) return;
-        if (currentInput.length < 13) {
+        if (currentInput.length < 12) {
             currentInput += num;
             updateDisplay();
         }
@@ -194,51 +189,48 @@
         if (currentInput === "" || isCalling) return;
         
         isCalling = true;
-        document.getElementById("statusDisplay").innerText = "연결 중...";
+        document.getElementById("statusDisplay").innerText = "신호 연결 중...";
         document.getElementById("callBtn").style.display = "none";
         document.getElementById("endBtn").style.display = "flex";
 
-        // 💡 [아이패드/아이폰 대응] 
-        // 터치하는 순간 오디오 엔진 및 음성 엔진을 미리 '화이트리스트'에 등록
+        // 아이패드/아이폰 소리 차단 해제 세팅
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
         if ('speechSynthesis' in window) {
-            // 빈 음성을 먼저 한번 재생해서 아이패드 소리 차단을 해제
             window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
         }
 
         // 신호음 재생
         playDialTone();
 
-        // 연결 판단
+        // 입력한 번호가 목록에 있는지 체크
+        const matchedMessage = SECRET_MESSAGES[currentInput];
+
         ringtoneTimer = setTimeout(() => {
-            if (currentInput === SECRET_NUMBER) {
+            if (matchedMessage) {
+                // 번호가 일치할 때
                 document.getElementById("statusDisplay").innerText = "통화 중 [보안 채널]";
-                playSecretVoice();
+                playSecretVoice(matchedMessage);
             } else {
+                // 등록되지 않은 번호일 때
                 document.getElementById("statusDisplay").innerText = "올바르지 않은 암호입니다.";
                 setTimeout(endCall, 2000); 
             }
         }, 1800);
     }
 
-    function playSecretVoice() {
-        // [방법 A] 웹 음성합성 (TTS) - 별도 파일 없이 작동
+    function playSecretVoice(messageText) {
         if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(SECRET_MESSAGE);
+            const utterance = new SpeechSynthesisUtterance(messageText);
             utterance.lang = 'ko-KR';
-            utterance.rate = 0.9; // 약간 천천히 읽기
+            utterance.rate = 0.85; 
             
             utterance.onend = function() {
-                setTimeout(endCall, 1000); // 음성 끝나면 통화 종료
+                setTimeout(endCall, 1000); 
             };
             window.speechSynthesis.speak(utterance);
         }
-        
-        // [방법 B] mp3 파일 사용 시 위 웹 음성을 주석처리하고 아래를 사용하세요
-        // customAudio.play();
-        // customAudio.onended = () => { endCall(); };
     }
 
     function endCall() {
@@ -246,14 +238,14 @@
         clearTimeout(ringtoneTimer);
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         
-        document.getElementById("statusDisplay").innerText = "전화가 종료되었습니다.";
+        document.getElementById("statusDisplay").innerText = "연결이 종료되었습니다.";
         document.getElementById("callBtn").style.display = "flex";
         document.getElementById("endBtn").style.display = "none";
         
         setTimeout(() => {
             currentInput = "";
             updateDisplay();
-            document.getElementById("statusDisplay").innerText = "전화번호를 입력하세요";
+            document.getElementById("statusDisplay").innerText = "암호 번호를 입력하십시오";
         }, 1500);
     }
 </script>
