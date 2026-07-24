@@ -196,19 +196,29 @@
         document.getElementById("callBtn").style.display = "none";
         document.getElementById("endBtn").style.display = "flex";
 
-        // 신호음 재생 (1.5초)
+        // 💡 [아이패드/아이폰 대응] 
+        // 터치하는 순간 오디오 엔진 및 음성 엔진을 미리 '화이트리스트'에 등록
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        if ('speechSynthesis' in window) {
+            // 빈 음성을 먼저 한번 재생해서 아이패드 소리 차단을 해제
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+        }
+
+        // 신호음 재생
         playDialTone();
 
-        // 2초 후 연결 판단
+        // 연결 판단
         ringtoneTimer = setTimeout(() => {
             if (currentInput === SECRET_NUMBER) {
-                document.getElementById("statusDisplay").innerText = "통화 중 00:01";
+                document.getElementById("statusDisplay").innerText = "통화 중 [보안 채널]";
                 playSecretVoice();
             } else {
-                document.getElementById("statusDisplay").innerText = "없는 번호입니다.";
-                setTimeout(endCall, 2000); // 2초 뒤 자동 종료
+                document.getElementById("statusDisplay").innerText = "올바르지 않은 암호입니다.";
+                setTimeout(endCall, 2000); 
             }
-        }, 2000);
+        }, 1800);
     }
 
     function playSecretVoice() {
